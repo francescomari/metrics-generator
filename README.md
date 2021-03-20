@@ -8,30 +8,40 @@ and exposes two metrics related to these requests:
 - `metrics_generator_request_errors_count` - counter - The number of requests resulting in an
   error.
 
-### CLI
+## CLI
 
 Metrics Generator accepts flags to initialize the rate of the simulated request,
 the maximum request duration and the percentage of requests that will result in
 an error. Use the `-help` flag to see the command's help.
 
-### API
+## API
 
-  GET /-/health
+Metrics Generator exposes a minimal API for reporting its health and for changing at runtime the behaviour around the simulated requests.
+
+```
+GET /-/health
+```
 
 Always return a 200 response.
 
-  PUT /-/config/max-duration
+```
+PUT /-/config/max-duration
+```
 
 Set the maximum duration of the simulated requests to the value passed in the
 body of the request. The value must be a  positive integer.
 
-  PUT /-/config/errors-percentage
+```
+PUT /-/config/errors-percentage
+```
 
 Set the percentage of the simulated requests that will result in an error to the
 value passed in the body of the request. It must be an integer between 0 and
 100.
 
-  PUT /-/config/request-rate
+```
+PUT /-/config/request-rate
+```
 
 Set the rate of the simulated requests to the value passed in the body of the
 request. It must be a strictly positive integer.
