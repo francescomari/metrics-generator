@@ -1,5 +1,5 @@
-build:
-	docker build -t francescomari/metrics-generator .
+snapshot:
+	goreleaser --snapshot --rm-dist
 
-push: build
-	docker push francescomari/metrics-generator
+release:
+	goreleaser --rm-dist
