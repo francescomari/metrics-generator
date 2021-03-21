@@ -12,7 +12,8 @@ archives:
   - name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
 dockers:
   - image_templates:
-      - francescomari/metrics-generator
+      - "francescomari/metrics-generator:latest"
+      - "francescomari/metrics-generator:{{ .Version }}"
 checksum:
   name_template: "checksums.txt"
 changelog:
