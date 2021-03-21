@@ -8,6 +8,8 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
 	"sync"
 	"time"
@@ -57,15 +59,40 @@ func run() error {
 	log.Printf("using errors percentage %v", errorsPercentage)
 	log.Printf("using request rate %v", requestRate)
 
-	go simulateRequests(context.Background(), &config)
+	ctx, cancel := contextWithSignal(context.Background(), os.Interrupt)
+	defer cancel()
 
-	http.HandleFunc("/-/health", healthHandler)
-	http.HandleFunc("/-/config/max-duration", setConfigHandler(config.SetMaxDuration))
-	http.HandleFunc("/-/config/errors-percentage", setConfigHandler(config.SetErrorsPercentage))
-	http.HandleFunc("/-/config/request-rate", setConfigHandler(config.SetRequestRate))
-	http.Handle("/metrics", promhttp.Handler())
+	go simulateRequests(ctx, &config)
 
-	return http.ListenAndServe(addr, nil)
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/-/health", healthHandler)
+	mux.HandleFunc("/-/config/max-duration", setConfigHandler(config.SetMaxDuration))
+	mux.HandleFunc("/-/config/errors-percentage", setConfigHandler(config.SetErrorsPercentage))
+	mux.HandleFunc("/-/config/request-rate", setConfigHandler(config.SetRequestRate))
+	mux.Handle("/metrics", promhttp.Handler())
+
+	server := http.Server{
+		Addr:    addr,
+		Handler: mux,
+	}
+
+	go func() {
+		<-ctx.Done()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			log.Printf("error: shutdown server: %v", err)
+		}
+	}()
+
+	if err := server.ListenAndServe(); err != http.ErrServerClosed {
+		return fmt.Errorf("listen and serve: %v", err)
+	}
+
+	return nil
 }
 
 func simulateRequests(ctx context.Context, config *config) error {
@@ -139,6 +166,26 @@ func setConfigHandler(set func(int) error) http.HandlerFunc {
 
 		fmt.Fprintln(w, "OK")
 	}
+}
+
+func contextWithSignal(parent context.Context, signals ...os.Signal) (context.Context, context.CancelFunc) {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, signals...)
+
+	ctx, cancel := context.WithCancel(parent)
+
+	go func() {
+		defer cancel()
+
+		select {
+		case <-parent.Done():
+			// Return if the parent context is cancelled.
+		case <-ch:
+			// Return if notified by a signal.
+		}
+	}()
+
+	return ctx, cancel
 }
 
 type config struct {
