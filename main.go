@@ -13,8 +13,20 @@ import (
 	"github.com/francescomari/metrics-generator/internal/api"
 	"github.com/francescomari/metrics-generator/internal/limits"
 	"github.com/francescomari/metrics-generator/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var requestDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+	Name: "metrics_generator_request_duration_seconds",
+	Help: "Request duration in seconds",
+})
+
+var requestErrorsCount = promauto.NewCounter(prometheus.CounterOpts{
+	Name: "metrics_generator_request_errors_count",
+	Help: "Number of errors observed in requests",
+})
 
 func main() {
 	if err := run(); err != nil {
@@ -60,7 +72,9 @@ func run() error {
 	defer cancel()
 
 	simulator := metrics.Generator{
-		Config: &config,
+		Config:   &config,
+		Duration: requestDuration,
+		Errors:   requestErrorsCount,
 	}
 
 	go simulator.Run(ctx)
