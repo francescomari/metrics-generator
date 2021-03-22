@@ -40,7 +40,7 @@ func (s *Server) Run(ctx context.Context) error {
 		defer cancel()
 
 		if err := server.Shutdown(ctx); err != nil {
-			log.Printf("error: shutdown server: %v", err)
+			log.Printf("shutdown server: %v", err)
 		}
 	}()
 
@@ -53,7 +53,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		httpError(w, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -63,27 +63,31 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func setConfigHandler(set func(int) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			httpError(w, http.StatusMethodNotAllowed)
 			return
 		}
 
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			httpError(w, http.StatusInternalServerError)
 			return
 		}
 
 		value, err := strconv.Atoi(string(data))
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			httpError(w, http.StatusBadRequest)
 			return
 		}
 
 		if err := set(value); err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			httpError(w, http.StatusBadRequest)
 			return
 		}
 
 		fmt.Fprintln(w, "OK")
 	}
+}
+
+func httpError(w http.ResponseWriter, code int) {
+	http.Error(w, http.StatusText(code), code)
 }
