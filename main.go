@@ -11,9 +11,9 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"sync/atomic"
 	"time"
 
+	"github.com/francescomari/metrics-generator/internal/limits"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -41,7 +41,7 @@ func run() error {
 	flag.IntVar(&requestRate, "request-rate", 1, "How many requests per seconds to simulate")
 	flag.Parse()
 
-	var config config
+	var config limits.Config
 
 	if err := config.SetMaxDuration(maxDuration); err != nil {
 		return fmt.Errorf("set max duration: %v", err)
@@ -95,7 +95,7 @@ func run() error {
 	return nil
 }
 
-func simulateRequests(ctx context.Context, config *config) error {
+func simulateRequests(ctx context.Context, config *limits.Config) error {
 	requestDuration := promauto.NewHistogram(prometheus.HistogramOpts{
 		Name: "metrics_generator_request_duration_seconds",
 		Help: "Request duration in seconds",
@@ -186,52 +186,4 @@ func contextWithSignal(parent context.Context, signals ...os.Signal) (context.Co
 	}()
 
 	return ctx, cancel
-}
-
-type config struct {
-	maxDuration      int64
-	errorsPercentage int64
-	requestRate      int64
-}
-
-func (c *config) MaxDuration() int {
-	return int(atomic.LoadInt64(&c.maxDuration))
-}
-
-func (c *config) SetMaxDuration(maxDuration int) error {
-	if maxDuration < 0 {
-		return fmt.Errorf("value is less than zero")
-	}
-
-	atomic.StoreInt64(&c.maxDuration, int64(maxDuration))
-
-	return nil
-}
-
-func (c *config) ErrorsPercentage() int {
-	return int(atomic.LoadInt64(&c.errorsPercentage))
-}
-
-func (c *config) SetErrorsPercentage(errorsPercentage int) error {
-	if errorsPercentage < 0 || errorsPercentage > 100 {
-		return fmt.Errorf("value is not a valid percentage")
-	}
-
-	atomic.StoreInt64(&c.errorsPercentage, int64(errorsPercentage))
-
-	return nil
-}
-
-func (c *config) RequestRate() int {
-	return int(atomic.LoadInt64(&c.requestRate))
-}
-
-func (c *config) SetRequestRate(requestRate int) error {
-	if requestRate <= 0 {
-		return fmt.Errorf("value is less than or equal to zeros")
-	}
-
-	atomic.StoreInt64(&c.requestRate, int64(requestRate))
-
-	return nil
 }
