@@ -3,10 +3,10 @@
 Metrics Generator pretends to continuously receive a certain amount of requests
 and exposes two metrics related to these requests:
 
-- `metrics_generator_request_duration_seconds` - histogram - The duration of the requests, in
-  seconds.
-- `metrics_generator_request_errors_count` - counter - The number of requests resulting in an
-  error.
+- `metrics_generator_request_duration_seconds` - histogram - The duration of the
+  requests, in seconds.
+- `metrics_generator_request_errors_count` - counter - The number of requests
+  resulting in an error.
 
 ## CLI
 
@@ -16,7 +16,8 @@ an error. Use the `-help` flag to see the command's help.
 
 ## API
 
-Metrics Generator exposes a minimal API for reporting its health and for changing at runtime the behaviour around the simulated requests.
+Metrics Generator exposes a minimal API for reporting its health and for
+changing at runtime the behaviour around the simulated requests.
 
 ```
 GET /-/health
