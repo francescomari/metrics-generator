@@ -11,7 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -189,56 +189,49 @@ func contextWithSignal(parent context.Context, signals ...os.Signal) (context.Co
 }
 
 type config struct {
-	mu               sync.RWMutex
-	maxDuration      int
-	errorsPercentage int
-	requestRate      int
+	maxDuration      int64
+	errorsPercentage int64
+	requestRate      int64
 }
 
 func (c *config) MaxDuration() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.maxDuration
+	return int(atomic.LoadInt64(&c.maxDuration))
 }
 
 func (c *config) SetMaxDuration(maxDuration int) error {
 	if maxDuration < 0 {
 		return fmt.Errorf("value is less than zero")
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.maxDuration = maxDuration
+
+	atomic.StoreInt64(&c.maxDuration, int64(maxDuration))
+
 	return nil
 }
 
 func (c *config) ErrorsPercentage() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.errorsPercentage
+	return int(atomic.LoadInt64(&c.errorsPercentage))
 }
 
 func (c *config) SetErrorsPercentage(errorsPercentage int) error {
 	if errorsPercentage < 0 || errorsPercentage > 100 {
 		return fmt.Errorf("value is not a valid percentage")
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.errorsPercentage = errorsPercentage
+
+	atomic.StoreInt64(&c.errorsPercentage, int64(errorsPercentage))
+
 	return nil
 }
 
 func (c *config) RequestRate() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.requestRate
+	return int(atomic.LoadInt64(&c.requestRate))
 }
 
 func (c *config) SetRequestRate(requestRate int) error {
 	if requestRate <= 0 {
 		return fmt.Errorf("value is less than or equal to zeros")
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.requestRate = requestRate
+
+	atomic.StoreInt64(&c.requestRate, int64(requestRate))
+
 	return nil
 }
