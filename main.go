@@ -4,19 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
-	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 
+	"github.com/francescomari/metrics-generator/internal/api"
 	"github.com/francescomari/metrics-generator/internal/limits"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -64,35 +61,12 @@ func run() error {
 
 	go simulateRequests(ctx, &config)
 
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/-/health", healthHandler)
-	mux.HandleFunc("/-/config/max-duration", setConfigHandler(config.SetMaxDuration))
-	mux.HandleFunc("/-/config/errors-percentage", setConfigHandler(config.SetErrorsPercentage))
-	mux.HandleFunc("/-/config/request-rate", setConfigHandler(config.SetRequestRate))
-	mux.Handle("/metrics", promhttp.Handler())
-
-	server := http.Server{
-		Addr:    addr,
-		Handler: mux,
+	server := api.Server{
+		Addr:   addr,
+		Config: &config,
 	}
 
-	go func() {
-		<-ctx.Done()
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		if err := server.Shutdown(ctx); err != nil {
-			log.Printf("error: shutdown server: %v", err)
-		}
-	}()
-
-	if err := server.ListenAndServe(); err != http.ErrServerClosed {
-		return fmt.Errorf("listen and serve: %v", err)
-	}
-
-	return nil
+	return server.Run(ctx)
 }
 
 func simulateRequests(ctx context.Context, config *limits.Config) error {
@@ -128,43 +102,6 @@ func simulateRequests(ctx context.Context, config *limits.Config) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return
-	}
-
-	fmt.Fprintln(w, "OK")
-}
-
-func setConfigHandler(set func(int) error) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPut {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
-		}
-
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		value, err := strconv.Atoi(string(data))
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
-
-		if err := set(value); err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
-
-		fmt.Fprintln(w, "OK")
 	}
 }
 
