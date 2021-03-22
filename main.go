@@ -12,8 +12,7 @@ import (
 
 	"github.com/francescomari/metrics-generator/internal/api"
 	"github.com/francescomari/metrics-generator/internal/limits"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/francescomari/metrics-generator/internal/metrics"
 )
 
 func main() {
@@ -59,7 +58,11 @@ func run() error {
 	ctx, cancel := contextWithSignal(context.Background(), os.Interrupt)
 	defer cancel()
 
-	go simulateRequests(ctx, &config)
+	simulator := metrics.Generator{
+		Config: &config,
+	}
+
+	go simulator.Run(ctx)
 
 	server := api.Server{
 		Addr:   addr,
@@ -67,42 +70,6 @@ func run() error {
 	}
 
 	return server.Run(ctx)
-}
-
-func simulateRequests(ctx context.Context, config *limits.Config) error {
-	requestDuration := promauto.NewHistogram(prometheus.HistogramOpts{
-		Name: "metrics_generator_request_duration_seconds",
-		Help: "Request duration in seconds",
-	})
-
-	requestErrorsCount := promauto.NewCounter(prometheus.CounterOpts{
-		Name: "metrics_generator_request_errors_count",
-		Help: "Number of errors observed in requests",
-	})
-
-	for {
-
-		// Observe a request that took a random amount of time between (0,
-		// N) seconds. The default for N is 10s, which fits the highest
-		// bucket defined by default by a Prometheus histogram.
-
-		requestDuration.Observe(float64(rand.Intn(config.MaxDuration())))
-
-		// Simulate the failure of a certain percentage of the requests.
-
-		if rand.Intn(100) < config.ErrorsPercentage() {
-			requestErrorsCount.Inc()
-		}
-
-		// Simulate the configured request rate.
-
-		select {
-		case <-time.After(time.Duration(float64(time.Second) / float64(config.RequestRate()))):
-			continue
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
 }
 
 func contextWithSignal(parent context.Context, signals ...os.Signal) (context.Context, context.CancelFunc) {
