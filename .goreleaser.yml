@@ -8,6 +8,7 @@ builds:
       - linux
       - windows
       - darwin
+    main: "./bin/metrics-generator"
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
 dockers:
