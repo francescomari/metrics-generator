@@ -13,6 +13,7 @@ import (
 	"github.com/francescomari/metrics-generator/internal/api"
 	"github.com/francescomari/metrics-generator/internal/limits"
 	"github.com/francescomari/metrics-generator/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -65,8 +66,9 @@ func run() error {
 	go simulator.Run(ctx)
 
 	server := api.Server{
-		Addr:   addr,
-		Config: &config,
+		Addr:    addr,
+		Config:  &config,
+		Metrics: promhttp.Handler(),
 	}
 
 	return server.Run(ctx)

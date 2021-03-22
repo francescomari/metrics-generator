@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/francescomari/metrics-generator/internal/limits"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
-	Addr   string
-	Config *limits.Config
+	Addr    string
+	Config  *limits.Config
+	Metrics http.Handler
 }
 
 func (s *Server) Run(ctx context.Context) error {
@@ -26,7 +26,7 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("/-/config/errors-percentage", setConfigHandler(s.Config.SetErrorsPercentage))
 	mux.HandleFunc("/-/config/request-rate", setConfigHandler(s.Config.SetRequestRate))
 
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", s.Metrics)
 
 	server := http.Server{
 		Addr:    s.Addr,
