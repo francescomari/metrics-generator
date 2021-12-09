@@ -66,13 +66,17 @@ func run() error {
 	ctx, cancel := contextWithSignal(context.Background(), os.Interrupt)
 	defer cancel()
 
-	simulator := metrics.Generator{
+	generator := metrics.Generator{
 		Config:   &config,
 		Duration: requestDuration,
 		Errors:   requestErrorsCount,
 	}
 
-	go simulator.Run(ctx)
+	go func() {
+		if err := generator.Run(ctx); err != nil && err != context.Canceled {
+			log.Printf("error: run simulator: %v", err)
+		}
+	}()
 
 	server := api.Server{
 		Addr:    addr,
