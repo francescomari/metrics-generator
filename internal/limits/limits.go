@@ -8,7 +8,6 @@ import (
 type Config struct {
 	maxDuration      int64
 	errorsPercentage int64
-	requestRate      int64
 }
 
 func (c *Config) MaxDuration() int {
@@ -35,20 +34,6 @@ func (c *Config) SetErrorsPercentage(errorsPercentage int) error {
 	}
 
 	atomic.StoreInt64(&c.errorsPercentage, int64(errorsPercentage))
-
-	return nil
-}
-
-func (c *Config) RequestRate() int {
-	return int(atomic.LoadInt64(&c.requestRate))
-}
-
-func (c *Config) SetRequestRate(requestRate int) error {
-	if requestRate <= 0 {
-		return fmt.Errorf("value is less than or equal to zeros")
-	}
-
-	atomic.StoreInt64(&c.requestRate, int64(requestRate))
 
 	return nil
 }

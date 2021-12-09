@@ -24,7 +24,6 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("/-/health", healthHandler)
 	mux.HandleFunc("/-/config/max-duration", setConfigHandler(s.Config.SetMaxDuration))
 	mux.HandleFunc("/-/config/errors-percentage", setConfigHandler(s.Config.SetErrorsPercentage))
-	mux.HandleFunc("/-/config/request-rate", setConfigHandler(s.Config.SetRequestRate))
 
 	mux.Handle("/metrics", s.Metrics)
 

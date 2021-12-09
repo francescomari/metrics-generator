@@ -41,13 +41,11 @@ func run() error {
 		addr             string
 		maxDuration      int
 		errorsPercentage int
-		requestRate      int
 	)
 
 	flag.StringVar(&addr, "addr", ":8080", "The address to listen to")
 	flag.IntVar(&maxDuration, "max-duration", 10, "Max duration of the simulated requests")
 	flag.IntVar(&errorsPercentage, "errors-percentage", 10, "Which percentage of the requests will fail")
-	flag.IntVar(&requestRate, "request-rate", 1, "How many requests per seconds to simulate")
 	flag.Parse()
 
 	var config limits.Config
@@ -60,13 +58,8 @@ func run() error {
 		return fmt.Errorf("set errors percentage: %v", err)
 	}
 
-	if err := config.SetRequestRate(requestRate); err != nil {
-		return fmt.Errorf("set request rate: %v", err)
-	}
-
 	log.Printf("using max duration %v", maxDuration)
 	log.Printf("using errors percentage %v", errorsPercentage)
-	log.Printf("using request rate %v", requestRate)
 
 	ctx, cancel := contextWithSignal(context.Background(), os.Interrupt)
 	defer cancel()
