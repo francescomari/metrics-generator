@@ -24,9 +24,9 @@ type Generator struct {
 
 func (g *Generator) Run(ctx context.Context) error {
 	for {
-		g.Duration.Observe(float64(rand.Intn(g.Config.MaxDuration())))
+		g.Duration.Observe(g.randomDuration())
 
-		if rand.Intn(100) < g.Config.ErrorsPercentage() {
+		if g.shouldFailRequest() {
 			g.Errors.Inc()
 		}
 
@@ -37,4 +37,16 @@ func (g *Generator) Run(ctx context.Context) error {
 			return ctx.Err()
 		}
 	}
+}
+
+func (g *Generator) shouldFailRequest() bool {
+	return rand.Intn(100) < g.Config.ErrorsPercentage()
+}
+
+func (g *Generator) randomDuration() float64 {
+	return float64(randomNumberBetween(g.Config.DurationInterval()))
+}
+
+func randomNumberBetween(min, max int) int {
+	return min + rand.Intn(max-min)
 }

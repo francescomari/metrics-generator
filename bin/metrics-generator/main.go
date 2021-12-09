@@ -39,18 +39,20 @@ func run() error {
 
 	var (
 		addr             string
+		minDuration      int
 		maxDuration      int
 		errorsPercentage int
 	)
 
 	flag.StringVar(&addr, "addr", ":8080", "The address to listen to")
-	flag.IntVar(&maxDuration, "max-duration", 10, "Max duration of the simulated requests")
+	flag.IntVar(&minDuration, "min-duration", 1, "Minimum request duration")
+	flag.IntVar(&maxDuration, "max-duration", 10, "Maximum request duration")
 	flag.IntVar(&errorsPercentage, "errors-percentage", 10, "Which percentage of the requests will fail")
 	flag.Parse()
 
 	var config limits.Config
 
-	if err := config.SetMaxDuration(maxDuration); err != nil {
+	if err := config.SetDurationInterval(minDuration, maxDuration); err != nil {
 		return fmt.Errorf("set max duration: %v", err)
 	}
 
@@ -58,7 +60,7 @@ func run() error {
 		return fmt.Errorf("set errors percentage: %v", err)
 	}
 
-	log.Printf("using max duration %v", maxDuration)
+	log.Printf("using duration %v,%v", minDuration, maxDuration)
 	log.Printf("using errors percentage %v", errorsPercentage)
 
 	ctx, cancel := contextWithSignal(context.Background(), os.Interrupt)

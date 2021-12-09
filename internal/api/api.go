@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/francescomari/metrics-generator/internal/limits"
@@ -21,10 +22,9 @@ type Server struct {
 func (s *Server) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/-/health", healthHandler)
-	mux.HandleFunc("/-/config/max-duration", setConfigHandler(s.Config.SetMaxDuration))
-	mux.HandleFunc("/-/config/errors-percentage", setConfigHandler(s.Config.SetErrorsPercentage))
-
+	mux.HandleFunc("/-/health", s.handleHealth)
+	mux.HandleFunc("/-/config/duration", s.handleDuration)
+	mux.HandleFunc("/-/config/errors-percentage", s.handleErrorsPercentage)
 	mux.Handle("/metrics", s.Metrics)
 
 	server := http.Server{
@@ -50,7 +50,7 @@ func (s *Server) Run(ctx context.Context) error {
 	return nil
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		httpError(w, http.StatusMethodNotAllowed)
 		return
@@ -59,32 +59,69 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "OK")
 }
 
-func setConfigHandler(set func(int) error) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPut {
-			httpError(w, http.StatusMethodNotAllowed)
-			return
-		}
-
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			httpError(w, http.StatusInternalServerError)
-			return
-		}
-
-		value, err := strconv.Atoi(string(data))
-		if err != nil {
-			httpError(w, http.StatusBadRequest)
-			return
-		}
-
-		if err := set(value); err != nil {
-			httpError(w, http.StatusBadRequest)
-			return
-		}
-
-		fmt.Fprintln(w, "OK")
+func (s *Server) handleDuration(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		httpError(w, http.StatusMethodNotAllowed)
+		return
 	}
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError)
+		return
+	}
+
+	parts := strings.Split(string(data), ",")
+
+	if len(parts) != 2 {
+		httpError(w, http.StatusBadRequest)
+		return
+	}
+
+	min, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		httpError(w, http.StatusBadRequest)
+		return
+	}
+
+	max, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		httpError(w, http.StatusBadRequest)
+		return
+	}
+
+	if err := s.Config.SetDurationInterval(min, max); err != nil {
+		httpError(w, http.StatusBadRequest)
+		return
+	}
+
+	fmt.Fprintln(w, "OK")
+}
+
+func (s *Server) handleErrorsPercentage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		httpError(w, http.StatusMethodNotAllowed)
+		return
+	}
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError)
+		return
+	}
+
+	value, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		httpError(w, http.StatusBadRequest)
+		return
+	}
+
+	if err := s.Config.SetErrorsPercentage(value); err != nil {
+		httpError(w, http.StatusBadRequest)
+		return
+	}
+
+	fmt.Fprintln(w, "OK")
 }
 
 func httpError(w http.ResponseWriter, code int) {

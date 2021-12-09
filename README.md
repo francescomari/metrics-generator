@@ -10,14 +10,14 @@ Metrics Generator pretends to continuously receive requests with a fixed rate of
 
 ## CLI
 
-Metrics Generator accepts flags to initialize the rate of the simulated request,
-the maximum request duration and the percentage of requests that will result in
-an error. Use the `-help` flag to see the command's help.
+Metrics Generator accepts flags to initialize the minimum and maximum request
+duration and the percentage of requests that will result in an error. Use the
+`-help` flag to see the command's help.
 
 ## API
 
 Metrics Generator exposes a minimal API for reporting its health and for
-changing at runtime the behaviour around the simulated requests.
+changing at runtime the behaviour of the simulated requests.
 
 ```
 GET /-/health
@@ -26,11 +26,13 @@ GET /-/health
 Always return a 200 response.
 
 ```
-PUT /-/config/max-duration
+PUT /-/config/duration
 ```
 
-Set the maximum duration of the simulated requests to the value passed in the
-body of the request. The value must be a  positive integer.
+Set the minimum and maximum value for the simulated duration to the values
+passed in the body of the request. The body must be in the form `min,max`. Both
+the minimum and the maximum must be numbers greater than zero. The minimum must
+be less than the maximum.
 
 ```
 PUT /-/config/errors-percentage
