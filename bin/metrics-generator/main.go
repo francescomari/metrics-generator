@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/francescomari/metrics-generator/internal/api"
@@ -59,7 +59,7 @@ type metricsGenerator struct {
 func (g *metricsGenerator) run() error {
 	config, err := g.buildLimitsConfig()
 	if err != nil {
-		return fmt.Errorf("build limits configuration: %v", err)
+		return err
 	}
 
 	generator := metrics.Generator{
@@ -74,17 +74,23 @@ func (g *metricsGenerator) run() error {
 		Metrics: promhttp.Handler(),
 	}
 
-	ctx, cancel := contextWithSignal(context.Background(), os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	var group errgroup.Group
+	group, ctx := errgroup.WithContext(ctx)
 
 	group.Go(func() error {
-		return generator.Run(ctx)
+		if err := generator.Run(ctx); err != nil && err != context.Canceled {
+			return fmt.Errorf("run generator: %v", err)
+		}
+		return nil
 	})
 
 	group.Go(func() error {
-		return server.Run(ctx)
+		if err := server.Run(ctx); err != nil && err != context.Canceled {
+			return fmt.Errorf("run server: %v", err)
+		}
+		return nil
 	})
 
 	return group.Wait()
@@ -102,24 +108,4 @@ func (g *metricsGenerator) buildLimitsConfig() (*limits.Config, error) {
 	}
 
 	return &config, nil
-}
-
-func contextWithSignal(parent context.Context, signals ...os.Signal) (context.Context, context.CancelFunc) {
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, signals...)
-
-	ctx, cancel := context.WithCancel(parent)
-
-	go func() {
-		defer cancel()
-
-		select {
-		case <-parent.Done():
-			// Return if the parent context is cancelled.
-		case <-ch:
-			// Return if notified by a signal.
-		}
-	}()
-
-	return ctx, cancel
 }

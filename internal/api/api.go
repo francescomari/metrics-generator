@@ -47,7 +47,7 @@ func (s *Server) Run(ctx context.Context) error {
 		return fmt.Errorf("listen and serve: %v", err)
 	}
 
-	return nil
+	return ctx.Err()
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
