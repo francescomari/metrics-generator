@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
@@ -63,40 +64,14 @@ func (g *metricsGenerator) run() error {
 		return err
 	}
 
-	generator := metrics.Generator{
-		Config:   config,
-		Duration: requestDuration,
-		Errors:   requestErrorsCount,
-	}
-
-	server := api.Server{
-		Addr:    g.address,
-		Config:  config,
-		Metrics: promhttp.Handler(),
-	}
-
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel := g.setupSignalHandler()
 	defer cancel()
 
-	group, ctx := errgroup.WithContext(ctx)
+	if err := g.runServices(ctx, config); err != nil {
+		return fmt.Errorf("run services: %v", err)
+	}
 
-	group.Go(func() error {
-		if err := generator.Run(ctx); err != nil {
-			return fmt.Errorf("run generator: %v", err)
-		}
-
-		return nil
-	})
-
-	group.Go(func() error {
-		if errs := server.Run(ctx); errs != nil {
-			return fmt.Errorf("run server: %v", multierror.Append(nil, errs...))
-		}
-
-		return nil
-	})
-
-	return group.Wait()
+	return nil
 }
 
 func (g *metricsGenerator) buildLimitsConfig() (*limits.Config, error) {
@@ -111,4 +86,78 @@ func (g *metricsGenerator) buildLimitsConfig() (*limits.Config, error) {
 	}
 
 	return &config, nil
+}
+
+func (g *metricsGenerator) setupSignalHandler() (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+}
+
+func (g *metricsGenerator) runServices(ctx context.Context, config *limits.Config) error {
+	group, ctx := errgroup.WithContext(ctx)
+
+	group.Go(func() error {
+		return g.runMetricsGenerator(ctx, config)
+	})
+
+	group.Go(func() error {
+		return g.runAPIServer(ctx, config)
+	})
+
+	return group.Wait()
+}
+
+func (g *metricsGenerator) runMetricsGenerator(ctx context.Context, config *limits.Config) error {
+	generator := metrics.Generator{
+		Config:   config,
+		Duration: requestDuration,
+		Errors:   requestErrorsCount,
+	}
+
+	return g.handleMetricsGeneratorError(generator.Run(ctx))
+}
+
+func (g *metricsGenerator) handleMetricsGeneratorError(err error) error {
+	switch err {
+	case nil:
+		return nil
+	case context.Canceled:
+		return nil
+	default:
+		return fmt.Errorf("metrics generator: %v", err)
+	}
+}
+
+func (g *metricsGenerator) runAPIServer(ctx context.Context, config *limits.Config) error {
+	server := api.Server{
+		Addr:    g.address,
+		Config:  config,
+		Metrics: promhttp.Handler(),
+	}
+
+	return g.handleAPIServerErrors(server.Run(ctx))
+}
+
+func (g *metricsGenerator) handleAPIServerErrors(errs []error) error {
+	var result error
+
+	for _, err := range errs {
+		if err := g.handleAPIServerError(err); err != nil {
+			result = multierror.Append(err)
+		}
+	}
+
+	return result
+}
+
+func (g *metricsGenerator) handleAPIServerError(err error) error {
+	switch err {
+	case nil:
+		return nil
+	case context.Canceled:
+		return nil
+	case http.ErrServerClosed:
+		return nil
+	default:
+		return fmt.Errorf("API server: %v", err)
+	}
 }
