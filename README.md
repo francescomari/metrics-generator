@@ -41,3 +41,23 @@ PUT /-/config/errors-percentage
 Set the percentage of the simulated requests that will result in an error to the
 value passed in the body of the request. It must be an integer between 0 and
 100.
+
+### Examples
+
+Simulate the duration to be a random number between 15s and 45s:
+
+```
+curl -X PUT http://localhost:8080/-/config/duration -d 15,45
+```
+
+Simulate the duration to be exactly 10s:
+
+```
+curl -X PUT http://localhost:8080/-/config/duration -d 10,10
+```
+
+Simulate the error rate to be 25%:
+
+```
+curl -X PUT http://localhost:8080/-/config/errors-percentage -d 25
+```
