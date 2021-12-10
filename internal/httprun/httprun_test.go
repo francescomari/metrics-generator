@@ -3,6 +3,7 @@ package httprun_test
 import (
 	"context"
 	"errors"
+	"runtime"
 	"testing"
 	"time"
 
@@ -53,6 +54,8 @@ func TestListenAndServe(t *testing.T) {
 		cancel()
 	}()
 
+	checkNoGoroutineLeaks(t)
+
 	errs := httprun.ListenAndServe(ctx, server, time.Second)
 
 	checkErrorsLength(t, errs, 0)
@@ -84,6 +87,8 @@ func TestListenAndServeErrors(t *testing.T) {
 		cancel()
 	}()
 
+	checkNoGoroutineLeaks(t)
+
 	errs := httprun.ListenAndServe(ctx, server, time.Second)
 
 	checkErrorsLength(t, errs, 2)
@@ -96,10 +101,9 @@ func TestListenAndServeSetupError(t *testing.T) {
 		doListenAndServe: func() error {
 			return errListenAndServe
 		},
-		doShutdown: func(context.Context) error {
-			panic("shutdown should not be called")
-		},
 	}
+
+	checkNoGoroutineLeaks(t)
 
 	errs := httprun.ListenAndServe(context.Background(), server, time.Second)
 
@@ -125,4 +129,19 @@ func checkErrorsContain(t *testing.T, errors []error, target error) {
 	}
 
 	t.Fatalf("error '%v' not found", target)
+}
+
+func checkNoGoroutineLeaks(t *testing.T) {
+	numGoroutinesBefore := runtime.NumGoroutine()
+
+	t.Cleanup(func() {
+		leaked := runtime.NumGoroutine() - numGoroutinesBefore
+
+		switch {
+		case leaked == 1:
+			t.Fatalf("one goroutine leaked")
+		case leaked > 1:
+			t.Fatalf("%d goroutines leaked", leaked)
+		}
+	})
 }
