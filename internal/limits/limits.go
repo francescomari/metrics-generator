@@ -26,7 +26,7 @@ func (c *Config) SetDurationInterval(minDuration, maxDuration int) error {
 	if maxDuration <= 0 {
 		return fmt.Errorf("maximum duration is less than or equal to zero")
 	}
-	if maxDuration <= minDuration {
+	if maxDuration < minDuration {
 		return fmt.Errorf("maximum duration is less then or equal to minimum duration")
 	}
 

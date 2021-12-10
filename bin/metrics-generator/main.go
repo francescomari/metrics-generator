@@ -41,8 +41,8 @@ func run() error {
 	var g metricsGenerator
 
 	flag.StringVar(&g.address, "addr", ":8080", "The address to listen to")
-	flag.IntVar(&g.minDuration, "min-duration", 1, "Minimum request duration")
-	flag.IntVar(&g.maxDuration, "max-duration", 10, "Maximum request duration")
+	flag.IntVar(&g.minDuration, "duration-min", 1, "Minimum request duration")
+	flag.IntVar(&g.maxDuration, "duration-max", 10, "Maximum request duration")
 	flag.IntVar(&g.errorsPercentage, "errors-percentage", 10, "Which percentage of the requests will fail")
 	flag.Parse()
 
