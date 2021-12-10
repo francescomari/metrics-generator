@@ -25,7 +25,8 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("/-/health", s.handleHealth)
 	mux.HandleFunc("/-/config/duration", s.handleDuration)
 	mux.HandleFunc("/-/config/errors-percentage", s.handleErrorsPercentage)
-	mux.Handle("/metrics", s.Metrics)
+	mux.HandleFunc("/metrics", s.handleMetrics)
+	mux.HandleFunc("/", s.handleNotFound)
 
 	server := http.Server{
 		Addr:    s.Addr,
@@ -57,6 +58,14 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintln(w, "OK")
+}
+
+func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
+	httpError(w, http.StatusNotFound)
+}
+
+func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	s.Metrics.ServeHTTP(w, r)
 }
 
 func (s *Server) handleDuration(w http.ResponseWriter, r *http.Request) {
