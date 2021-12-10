@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/francescomari/metrics-generator/internal/httprun"
 	"github.com/francescomari/metrics-generator/internal/limits"
 )
 
@@ -19,7 +19,7 @@ type Server struct {
 	Metrics http.Handler
 }
 
-func (s *Server) Run(ctx context.Context) error {
+func (s *Server) Run(ctx context.Context) []error {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/-/health", s.handleHealth)
@@ -33,22 +33,7 @@ func (s *Server) Run(ctx context.Context) error {
 		Handler: mux,
 	}
 
-	go func() {
-		<-ctx.Done()
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		if err := server.Shutdown(ctx); err != nil {
-			log.Printf("shutdown server: %v", err)
-		}
-	}()
-
-	if err := server.ListenAndServe(); err != http.ErrServerClosed {
-		return fmt.Errorf("listen and serve: %v", err)
-	}
-
-	return ctx.Err()
+	return httprun.ListenAndServe(ctx, &server, time.Second)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

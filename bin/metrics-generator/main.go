@@ -13,6 +13,7 @@ import (
 	"github.com/francescomari/metrics-generator/internal/api"
 	"github.com/francescomari/metrics-generator/internal/limits"
 	"github.com/francescomari/metrics-generator/internal/metrics"
+	"github.com/hashicorp/go-multierror"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -80,16 +81,18 @@ func (g *metricsGenerator) run() error {
 	group, ctx := errgroup.WithContext(ctx)
 
 	group.Go(func() error {
-		if err := generator.Run(ctx); err != nil && err != context.Canceled {
+		if err := generator.Run(ctx); err != nil {
 			return fmt.Errorf("run generator: %v", err)
 		}
+
 		return nil
 	})
 
 	group.Go(func() error {
-		if err := server.Run(ctx); err != nil && err != context.Canceled {
-			return fmt.Errorf("run server: %v", err)
+		if errs := server.Run(ctx); errs != nil {
+			return fmt.Errorf("run server: %v", multierror.Append(nil, errs...))
 		}
+
 		return nil
 	})
 
