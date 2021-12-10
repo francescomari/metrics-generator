@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/francescomari/metrics-generator/internal/api"
+	"github.com/francescomari/metrics-generator/internal/httprun"
 	"github.com/francescomari/metrics-generator/internal/limits"
 	"github.com/francescomari/metrics-generator/internal/metrics"
 	"github.com/hashicorp/go-multierror"
@@ -128,13 +129,17 @@ func (g *metricsGenerator) handleMetricsGeneratorError(err error) error {
 }
 
 func (g *metricsGenerator) runAPIServer(ctx context.Context, config *limits.Config) error {
-	server := api.Server{
-		Addr:    g.address,
+	handler := api.Handler{
 		Config:  config,
 		Metrics: promhttp.Handler(),
 	}
 
-	return g.handleAPIServerErrors(server.Run(ctx))
+	server := http.Server{
+		Addr:    g.address,
+		Handler: &handler,
+	}
+
+	return g.handleAPIServerErrors(httprun.ListenAndServe(ctx, &server, time.Second))
 }
 
 func (g *metricsGenerator) handleAPIServerErrors(errs []error) error {
