@@ -5,11 +5,19 @@ import (
 	"time"
 )
 
+// Server is an HTTP server that can be started and shut down with the functions
+// in this package. Server mimicks the interface of http.Server.
 type Server interface {
 	ListenAndServe() error
 	Shutdown(ctx context.Context) error
 }
 
+// ListenAndServe starts the provided server using the ListenAndServe method.
+// The server will be shut down when the provided context is cancelled. When
+// shutting the server, ListenAndServe calls the Shutdown method of the server
+// with a context that will be cancelled after shutdownTimeout. Any error
+// returned by the server will be returned to the caller. ListenAndServe returns
+// only when the server is fully shut down.
 func ListenAndServe(ctx context.Context, server Server, shutdownTimeout time.Duration) []error {
 	var (
 		errors       = make(chan error, 2)
