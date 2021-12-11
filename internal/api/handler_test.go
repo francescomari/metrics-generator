@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"errors"
@@ -9,6 +9,7 @@ import (
 	"testing"
 	"testing/iotest"
 
+	"github.com/francescomari/metrics-generator/internal/api"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -36,9 +37,9 @@ func (c mockConfig) SetErrorsPercentage(value int) error {
 }
 
 func TestHandlerHealth(t *testing.T) {
-	handler := Handler{}
+	handler := api.Handler{}
 
-	response := doRequest(&handler, http.MethodGet, "/-/health")
+	response := doHealthRequest(&handler)
 
 	checkStatusCode(t, response, http.StatusOK)
 	checkBody(t, response, "OK\n")
@@ -51,11 +52,7 @@ func TestHandlerGetDurationInterval(t *testing.T) {
 		},
 	}
 
-	handler := Handler{
-		Config: config,
-	}
-
-	response := doRequest(&handler, http.MethodGet, "/-/config/duration-interval")
+	response := doGetDurationIntervalRequest(handlerForConfig(config))
 
 	checkStatusCode(t, response, http.StatusOK)
 	checkBody(t, response, "12,34\n")
@@ -72,36 +69,26 @@ func TestHandlerSetDurationInterval(t *testing.T) {
 		},
 	}
 
-	handler := Handler{
-		Config: config,
-	}
-
-	response := doRequestWithBody(&handler, http.MethodPut, "/-/config/duration", strings.NewReader("12,34"))
+	response := doSetDurationIntervalRequest(handlerForConfig(config), strings.NewReader("12,34"))
 
 	checkStatusCode(t, response, http.StatusOK)
 	checkBody(t, response, "OK\n")
-
-	if minDuration != 12 {
-		t.Fatalf("invalid minimum duration interval: %v", minDuration)
-	}
-
-	if maxDuration != 34 {
-		t.Fatalf("invalid maximum duration interval: %v", maxDuration)
-	}
+	checkIntEqual(t, "minimum duration", minDuration, 12)
+	checkIntEqual(t, "maximum duration", maxDuration, 34)
 }
 
 func TestHandlerSetDurationIntervalInvalid(t *testing.T) {
-	handler := Handler{}
+	handler := api.Handler{}
 
-	response := doRequestWithBody(&handler, http.MethodPut, "/-/config/duration", strings.NewReader("boom"))
+	response := doSetDurationIntervalRequest(&handler, strings.NewReader("boom"))
 
 	checkStatusCode(t, response, http.StatusBadRequest)
 }
 
 func TestHandlerSetDurationIntervalReadError(t *testing.T) {
-	handler := Handler{}
+	handler := api.Handler{}
 
-	response := doRequestWithBody(&handler, http.MethodPut, "/-/config/duration", iotest.ErrReader(errors.New("error")))
+	response := doSetDurationIntervalRequest(&handler, iotest.ErrReader(errors.New("error")))
 
 	checkStatusCode(t, response, http.StatusInternalServerError)
 }
@@ -113,11 +100,7 @@ func TestHandlerSetDurationIntervalConfigError(t *testing.T) {
 		},
 	}
 
-	handler := Handler{
-		Config: config,
-	}
-
-	response := doRequestWithBody(&handler, http.MethodPut, "/-/config/duration", strings.NewReader("12,34"))
+	response := doSetDurationIntervalRequest(handlerForConfig(config), strings.NewReader("12,34"))
 
 	checkStatusCode(t, response, http.StatusBadRequest)
 }
@@ -129,11 +112,7 @@ func TestHandlerGetErrorsPercentage(t *testing.T) {
 		},
 	}
 
-	handler := Handler{
-		Config: config,
-	}
-
-	response := doRequest(&handler, http.MethodGet, "/-/config/errors-percentage")
+	response := doGetErrorsPercentageRequest(handlerForConfig(config))
 
 	checkStatusCode(t, response, http.StatusOK)
 	checkBody(t, response, "12\n")
@@ -149,32 +128,25 @@ func TestHandlerSetErrorsPercentage(t *testing.T) {
 		},
 	}
 
-	handler := Handler{
-		Config: config,
-	}
-
-	response := doRequestWithBody(&handler, http.MethodPut, "/-/config/errors-percentage", strings.NewReader("12"))
+	response := doSetErrorsPercentageRequest(handlerForConfig(config), strings.NewReader("12"))
 
 	checkStatusCode(t, response, http.StatusOK)
 	checkBody(t, response, "OK\n")
-
-	if errorsPercentage != 12 {
-		t.Fatalf("invalid errors percentage: %v", errorsPercentage)
-	}
+	checkIntEqual(t, "errors percentage", errorsPercentage, 12)
 }
 
 func TestHandlerSetErrorsPercentageInvalid(t *testing.T) {
-	handler := Handler{}
+	handler := api.Handler{}
 
-	response := doRequestWithBody(&handler, http.MethodPut, "/-/config/errors-percentage", strings.NewReader("boom"))
+	response := doSetErrorsPercentageRequest(&handler, strings.NewReader("boom"))
 
 	checkStatusCode(t, response, http.StatusBadRequest)
 }
 
 func TestHandlerSetErrorsPercentageReadError(t *testing.T) {
-	handler := Handler{}
+	handler := api.Handler{}
 
-	response := doRequestWithBody(&handler, http.MethodPut, "/-/config/errors-percentage", iotest.ErrReader(errors.New("error")))
+	response := doSetErrorsPercentageRequest(&handler, iotest.ErrReader(errors.New("error")))
 
 	checkStatusCode(t, response, http.StatusInternalServerError)
 }
@@ -186,13 +158,35 @@ func TestHandlerSetErrorsPercentageConfigError(t *testing.T) {
 		},
 	}
 
-	handler := Handler{
-		Config: config,
-	}
-
-	response := doRequestWithBody(&handler, http.MethodPut, "/-/config/errors-percentage", strings.NewReader("12"))
+	response := doSetErrorsPercentageRequest(handlerForConfig(config), strings.NewReader("12"))
 
 	checkStatusCode(t, response, http.StatusBadRequest)
+}
+
+func handlerForConfig(config api.Config) http.Handler {
+	return &api.Handler{
+		Config: config,
+	}
+}
+
+func doGetDurationIntervalRequest(handler http.Handler) *http.Response {
+	return doRequest(handler, http.MethodGet, "/-/config/duration-interval")
+}
+
+func doSetDurationIntervalRequest(handler http.Handler, body io.Reader) *http.Response {
+	return doRequestWithBody(handler, http.MethodPut, "/-/config/duration", body)
+}
+
+func doGetErrorsPercentageRequest(handler http.Handler) *http.Response {
+	return doRequest(handler, http.MethodGet, "/-/config/errors-percentage")
+}
+
+func doSetErrorsPercentageRequest(handler http.Handler, body io.Reader) *http.Response {
+	return doRequestWithBody(handler, http.MethodPut, "/-/config/errors-percentage", body)
+}
+
+func doHealthRequest(handler http.Handler) *http.Response {
+	return doRequest(handler, http.MethodGet, "/-/health")
 }
 
 func doRequest(handler http.Handler, method string, path string) *http.Response {
@@ -225,5 +219,13 @@ func checkBody(t *testing.T, response *http.Response, wanted string) {
 
 	if diff := cmp.Diff(string(data), wanted); diff != "" {
 		t.Fatalf("invalid body:\n%s", diff)
+	}
+}
+
+func checkIntEqual(t *testing.T, name string, got, wanted int) {
+	t.Helper()
+
+	if got != wanted {
+		t.Fatalf("invalid %s: wanted %d, got %d", name, wanted, got)
 	}
 }
