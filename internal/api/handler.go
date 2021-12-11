@@ -25,29 +25,29 @@ type Handler struct {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.once.Do(func() {
-		router := mux.NewRouter()
-
-		router.
-			Methods(http.MethodGet).
-			Path("/-/health").
-			HandlerFunc(h.handleHealth)
-
-		h.setupDurationInterval(router)
-		h.setupErrorsPercentage(router)
-
-		router.
-			Methods(http.MethodGet).
-			Path("/metrics").
-			Handler(h.Metrics)
-
-		h.handler = router
-	})
-
+	h.once.Do(h.setupHandlers)
 	h.handler.ServeHTTP(w, r)
 }
 
-func (h *Handler) setupDurationInterval(router *mux.Router) {
+func (h *Handler) setupHandlers() {
+	router := mux.NewRouter()
+
+	h.setupHealthHandler(router)
+	h.setupDurationIntervalHandlers(router)
+	h.setupErrorsPercentageHandlers(router)
+	h.setupMetricsHandler(router)
+
+	h.handler = router
+}
+
+func (h *Handler) setupHealthHandler(router *mux.Router) {
+	router.
+		Methods(http.MethodGet).
+		Path("/-/health").
+		HandlerFunc(h.handleHealth)
+}
+
+func (h *Handler) setupDurationIntervalHandlers(router *mux.Router) {
 	sub := router.
 		PathPrefix("/-/config/duration").
 		Subrouter()
@@ -61,7 +61,7 @@ func (h *Handler) setupDurationInterval(router *mux.Router) {
 		HandlerFunc(h.handleSetDurationInterval)
 }
 
-func (h *Handler) setupErrorsPercentage(router *mux.Router) {
+func (h *Handler) setupErrorsPercentageHandlers(router *mux.Router) {
 	sub := router.
 		PathPrefix("/-/config/errors-percentage").
 		Subrouter()
@@ -73,6 +73,13 @@ func (h *Handler) setupErrorsPercentage(router *mux.Router) {
 	sub.
 		Methods(http.MethodPut).
 		HandlerFunc(h.handleSetErrorsPercentage)
+}
+
+func (h *Handler) setupMetricsHandler(router *mux.Router) {
+	router.
+		Methods(http.MethodGet).
+		Path("/metrics").
+		Handler(h.Metrics)
 }
 
 func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
