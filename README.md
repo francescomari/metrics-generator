@@ -26,13 +26,26 @@ GET /-/health
 Always return a 200 response.
 
 ```
-PUT /-/config/duration
+GET /-/config/duration-interval
+```
+
+Returns the current minimum and maximum values for the duration interval in the
+form `min,max`.
+
+```
+PUT /-/config/duration-interval
 ```
 
 Set the minimum and maximum value for the simulated duration to the values
 passed in the body of the request. The body must be in the form `min,max`. Both
 the minimum and the maximum must be numbers greater than zero. The minimum must
 be less than the maximum.
+
+```
+GET /-/config/errors-percentage
+```
+
+Returns the current errors percentage.
 
 ```
 PUT /-/config/errors-percentage
@@ -44,16 +57,28 @@ value passed in the body of the request. It must be an integer between 0 and
 
 ### Examples
 
+Read the current duration interval:
+
+```
+curl http://localhost:8080/-/config/duration-interval
+```
+
 Simulate the duration to be a random number between 15s and 45s:
 
 ```
-curl -X PUT http://localhost:8080/-/config/duration -d 15,45
+curl -X PUT http://localhost:8080/-/config/duration-interval -d 15,45
 ```
 
 Simulate the duration to be exactly 10s:
 
 ```
-curl -X PUT http://localhost:8080/-/config/duration -d 10,10
+curl -X PUT http://localhost:8080/-/config/duration-interval -d 10,10
+```
+
+Read the current errors percentage:
+
+```
+curl http://localhost:8080/-/config/errors-percentage
 ```
 
 Simulate the error rate to be 25%:
