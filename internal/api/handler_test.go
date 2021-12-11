@@ -13,12 +13,22 @@ import (
 )
 
 type mockConfig struct {
+	doDurationInterval    func() (int, int)
 	doSetDurationInterval func(min, max int) error
+	doErrorsPercentage    func() int
 	doSetErrorsPercentage func(value int) error
+}
+
+func (c mockConfig) DurationInterval() (int, int) {
+	return c.doDurationInterval()
 }
 
 func (c mockConfig) SetDurationInterval(min, max int) error {
 	return c.doSetDurationInterval(min, max)
+}
+
+func (c mockConfig) ErrorsPercentage() int {
+	return c.doErrorsPercentage()
 }
 
 func (c mockConfig) SetErrorsPercentage(value int) error {
@@ -32,6 +42,23 @@ func TestHandlerHealth(t *testing.T) {
 
 	checkStatusCode(t, response, http.StatusOK)
 	checkBody(t, response, "OK\n")
+}
+
+func TestHandlerGetDurationInterval(t *testing.T) {
+	config := mockConfig{
+		doDurationInterval: func() (int, int) {
+			return 12, 34
+		},
+	}
+
+	handler := Handler{
+		Config: config,
+	}
+
+	response := doRequest(&handler, http.MethodGet, "/-/config/duration-interval")
+
+	checkStatusCode(t, response, http.StatusOK)
+	checkBody(t, response, "12,34\n")
 }
 
 func TestHandlerSetDurationInterval(t *testing.T) {
@@ -93,6 +120,23 @@ func TestHandlerSetDurationIntervalConfigError(t *testing.T) {
 	response := doRequestWithBody(&handler, http.MethodPut, "/-/config/duration", strings.NewReader("12,34"))
 
 	checkStatusCode(t, response, http.StatusBadRequest)
+}
+
+func TestHandlerGetErrorsPercentage(t *testing.T) {
+	config := mockConfig{
+		doErrorsPercentage: func() int {
+			return 12
+		},
+	}
+
+	handler := Handler{
+		Config: config,
+	}
+
+	response := doRequest(&handler, http.MethodGet, "/-/config/errors-percentage")
+
+	checkStatusCode(t, response, http.StatusOK)
+	checkBody(t, response, "12\n")
 }
 
 func TestHandlerSetErrorsPercentage(t *testing.T) {

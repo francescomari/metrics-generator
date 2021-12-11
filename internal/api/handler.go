@@ -10,7 +10,9 @@ import (
 )
 
 type Config interface {
+	DurationInterval() (int, int)
 	SetDurationInterval(min, max int) error
+	ErrorsPercentage() int
 	SetErrorsPercentage(value int) error
 }
 
@@ -31,15 +33,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Path("/-/health").
 			HandlerFunc(h.handleHealth)
 
-		router.
-			Methods(http.MethodPut).
-			Path("/-/config/duration").
-			HandlerFunc(h.handleDuration)
-
-		router.
-			Methods(http.MethodPut).
-			Path("/-/config/errors-percentage").
-			HandlerFunc(h.handleErrorsPercentage)
+		h.setupDurationInterval(router)
+		h.setupErrorsPercentage(router)
 
 		router.
 			Methods(http.MethodGet).
@@ -52,11 +47,44 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.handler.ServeHTTP(w, r)
 }
 
+func (h *Handler) setupDurationInterval(router *mux.Router) {
+	sub := router.
+		PathPrefix("/-/config/duration").
+		Subrouter()
+
+	sub.
+		Methods(http.MethodGet).
+		HandlerFunc(h.handleGetDurationInterval)
+
+	sub.
+		Methods(http.MethodPut).
+		HandlerFunc(h.handleSetDurationInterval)
+}
+
+func (h *Handler) setupErrorsPercentage(router *mux.Router) {
+	sub := router.
+		PathPrefix("/-/config/errors-percentage").
+		Subrouter()
+
+	sub.
+		Methods(http.MethodGet).
+		HandlerFunc(h.handleGetErrorsPercentage)
+
+	sub.
+		Methods(http.MethodPut).
+		HandlerFunc(h.handleSetErrorsPercentage)
+}
+
 func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "OK")
 }
 
-func (h *Handler) handleDuration(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleGetDurationInterval(w http.ResponseWriter, r *http.Request) {
+	min, max := h.Config.DurationInterval()
+	fmt.Fprintf(w, "%d,%d\n", min, max)
+}
+
+func (h *Handler) handleSetDurationInterval(w http.ResponseWriter, r *http.Request) {
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError)
@@ -77,7 +105,11 @@ func (h *Handler) handleDuration(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "OK")
 }
 
-func (h *Handler) handleErrorsPercentage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleGetErrorsPercentage(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "%d\n", h.Config.ErrorsPercentage())
+}
+
+func (h *Handler) handleSetErrorsPercentage(w http.ResponseWriter, r *http.Request) {
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError)
