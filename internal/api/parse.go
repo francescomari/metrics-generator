@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func parseDuration(value string) (int, int, error) {
+func parseDurationInterval(value string) (int, int, error) {
 	parts := strings.Split(value, ",")
 
 	if len(parts) != 2 {

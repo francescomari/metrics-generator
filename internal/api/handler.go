@@ -94,18 +94,18 @@ func (h *Handler) handleGetDurationInterval(w http.ResponseWriter, r *http.Reque
 func (h *Handler) handleSetDurationInterval(w http.ResponseWriter, r *http.Request) {
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError)
+		httpError(w, http.StatusInternalServerError, "read body: %v", err)
 		return
 	}
 
-	min, max, err := parseDuration(string(data))
+	min, max, err := parseDurationInterval(string(data))
 	if err != nil {
-		httpError(w, http.StatusBadRequest)
+		httpError(w, http.StatusBadRequest, "parse duration interval: %v", err)
 		return
 	}
 
 	if err := h.Config.SetDurationInterval(min, max); err != nil {
-		httpError(w, http.StatusBadRequest)
+		httpError(w, http.StatusBadRequest, "set duration interval: %v", err)
 		return
 	}
 
@@ -119,24 +119,24 @@ func (h *Handler) handleGetErrorsPercentage(w http.ResponseWriter, r *http.Reque
 func (h *Handler) handleSetErrorsPercentage(w http.ResponseWriter, r *http.Request) {
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError)
+		httpError(w, http.StatusInternalServerError, "read body: %v", err)
 		return
 	}
 
 	value, err := parseInt(string(data))
 	if err != nil {
-		httpError(w, http.StatusBadRequest)
+		httpError(w, http.StatusBadRequest, "parse errors percentage: %v", err)
 		return
 	}
 
 	if err := h.Config.SetErrorsPercentage(value); err != nil {
-		httpError(w, http.StatusBadRequest)
+		httpError(w, http.StatusBadRequest, "set errors percentage: %v", err)
 		return
 	}
 
 	fmt.Fprintln(w, "OK")
 }
 
-func httpError(w http.ResponseWriter, code int) {
-	http.Error(w, http.StatusText(code), code)
+func httpError(w http.ResponseWriter, code int, format string, args ...interface{}) {
+	http.Error(w, fmt.Sprintf(format, args...), code)
 }

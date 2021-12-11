@@ -5,7 +5,7 @@ import (
 )
 
 func TestParseDurationInterval(t *testing.T) {
-	if min, max, err := parseDuration("12,34"); err != nil {
+	if min, max, err := parseDurationInterval("12,34"); err != nil {
 		t.Fatalf("error: %v", err)
 	} else if min != 12 {
 		t.Fatalf("invalid minimum duration: %v", min)
@@ -43,7 +43,7 @@ func TestParseDurationIntervalError(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if _, _, err := parseDuration(test.value); err == nil {
+			if _, _, err := parseDurationInterval(test.value); err == nil {
 				t.Fatalf("no error returned")
 			}
 		})

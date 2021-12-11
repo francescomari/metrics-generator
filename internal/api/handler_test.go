@@ -174,7 +174,7 @@ func doGetDurationIntervalRequest(handler http.Handler) *http.Response {
 }
 
 func doSetDurationIntervalRequest(handler http.Handler, body io.Reader) *http.Response {
-	return doRequestWithBody(handler, http.MethodPut, "/-/config/duration", body)
+	return doRequestWithBody(handler, http.MethodPut, "/-/config/duration-interval", body)
 }
 
 func doGetErrorsPercentageRequest(handler http.Handler) *http.Response {
