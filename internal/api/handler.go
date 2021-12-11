@@ -49,7 +49,7 @@ func (h *Handler) setupHealthHandler(router *mux.Router) {
 
 func (h *Handler) setupDurationIntervalHandlers(router *mux.Router) {
 	sub := router.
-		PathPrefix("/-/config/duration").
+		PathPrefix("/-/config/duration-interval").
 		Subrouter()
 
 	sub.
