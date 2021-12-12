@@ -113,18 +113,11 @@ func (g *metricsGenerator) runMetricsGenerator(ctx context.Context, config *limi
 		Errors:   requestErrorsCount,
 	}
 
-	return g.handleMetricsGeneratorError(generator.Run(ctx))
-}
-
-func (g *metricsGenerator) handleMetricsGeneratorError(err error) error {
-	switch err {
-	case nil:
-		return nil
-	case context.Canceled:
-		return nil
-	default:
+	if err := g.handleMetricsGeneratorError(generator.Run(ctx)); err != nil {
 		return fmt.Errorf("metrics generator: %v", err)
 	}
+
+	return nil
 }
 
 func (g *metricsGenerator) runAPIServer(ctx context.Context, config *limits.Config) error {
@@ -148,4 +141,13 @@ func (g *metricsGenerator) runAPIServer(ctx context.Context, config *limits.Conf
 	}
 
 	return nil
+}
+
+func (g *metricsGenerator) handleMetricsGeneratorError(err error) error {
+	switch err {
+	case context.Canceled:
+		return nil
+	default:
+		return err
+	}
 }
