@@ -139,7 +139,12 @@ func (g *metricsGenerator) runAPIServer(ctx context.Context, config *limits.Conf
 		Handler: &handler,
 	}
 
-	return g.handleAPIServerErrors(httprun.ListenAndServe(ctx, &server, time.Second))
+	runServer := httprun.Server{
+		HTTPServer:      &server,
+		ShutdownTimeout: time.Second,
+	}
+
+	return g.handleAPIServerErrors(runServer.ListenAndServe(ctx))
 }
 
 func (g *metricsGenerator) handleAPIServerErrors(errs []error) error {

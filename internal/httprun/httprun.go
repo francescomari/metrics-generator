@@ -2,43 +2,87 @@ package httprun
 
 import (
 	"context"
+	"net"
 	"time"
 )
 
-// Server is an HTTP server that can be started and shut down with the functions
-// in this package. Server mimicks the interface of http.Server.
-type Server interface {
+// HTTPServer is an HTTP server that can be started and shut down. HTTPServer
+// mimicks the interface of http.Server. Every method in this interface has the
+// same semantics as the corresponding methods in http.Server.
+type HTTPServer interface {
 	ListenAndServe() error
+	ListenAndServeTLS(certFile, keyFile string) error
+	Serve(l net.Listener) error
+	ServeTLS(l net.Listener, certFile, keyFile string) error
 	Shutdown(ctx context.Context) error
 }
 
-// ListenAndServe starts the provided server using the ListenAndServe method.
-// The server will be shut down when the provided context is cancelled. When
-// shutting the server, ListenAndServe calls the Shutdown method of the server
-// with a context that will be cancelled after shutdownTimeout. Any error
-// returned by the server will be returned to the caller. ListenAndServe returns
-// only when the server is fully shut down.
-func ListenAndServe(ctx context.Context, server Server, shutdownTimeout time.Duration) []error {
+// Server is a server that can be shut down gracefully. Every method defined on
+// Server has the same semantics as the method with the same name in
+// http.Server, with additional behaviour to guarantee a graceful shutdown of
+// the server.
+type Server struct {
+	HTTPServer      HTTPServer
+	ShutdownTimeout time.Duration
+}
+
+// ListenAndServe has the same semantics of the ListenAndServe method of
+// http.Server. In addition, ListenAndServe will terminate after a graceful
+// shutdown when the given context is cancelled.
+func (s Server) ListenAndServe(ctx context.Context) []error {
+	return s.run(ctx, func() error {
+		return s.HTTPServer.ListenAndServe()
+	})
+}
+
+// ListenAndServeTLS has the same semantics of the ListenAndServeTLS method of
+// http.Server. In addition, ListenAndServeTLS will terminate after a graceful
+// shutdown when the given context is cancelled.
+func (s Server) ListenAndServeTLS(ctx context.Context, certFile, keyFile string) []error {
+	return s.run(ctx, func() error {
+		return s.HTTPServer.ListenAndServeTLS(certFile, keyFile)
+	})
+}
+
+// Serve has the same semantics of the Serve method of http.Server. In addition,
+// Serve will terminate after a graceful shutdown when the given context is
+// cancelled.
+func (s Server) Serve(ctx context.Context, l net.Listener) []error {
+	return s.run(ctx, func() error {
+		return s.HTTPServer.Serve(l)
+	})
+}
+
+// ServeTLS has the same semantics of the ServeTLS method of http.Server. In
+// addition, ServeTLS will terminate after a graceful shutdown when the given
+// context is cancelled.
+func (s Server) ServeTLS(ctx context.Context, l net.Listener, certFile, keyFile string) []error {
+	return s.run(ctx, func() error {
+		return s.HTTPServer.ServeTLS(l, certFile, keyFile)
+	})
+}
+
+func (s Server) run(ctx context.Context, serve func() error) []error {
 	var (
 		errors       = make(chan error, 2)
 		shutdownDone = make(chan struct{})
-		serverDone   = make(chan struct{})
+		serveDone    = make(chan struct{})
 	)
 
 	go func() {
-		defer close(serverDone)
+		defer close(serveDone)
 
-		errors <- server.ListenAndServe()
+		errors <- serve()
 	}()
 
 	go func() {
 		defer close(shutdownDone)
 
 		select {
-		case <-serverDone:
+		case <-serveDone:
 			return
 		case <-ctx.Done():
-			errors <- shutdownGracefully(server, shutdownTimeout)
+			errors <- s.shutdownGracefully()
 		}
 	}()
 
@@ -46,7 +90,7 @@ func ListenAndServe(ctx context.Context, server Server, shutdownTimeout time.Dur
 		defer close(errors)
 
 		<-shutdownDone
-		<-serverDone
+		<-serveDone
 	}()
 
 	var result []error
@@ -60,9 +104,9 @@ func ListenAndServe(ctx context.Context, server Server, shutdownTimeout time.Dur
 	return result
 }
 
-func shutdownGracefully(server Server, shutdownTimeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+func (s Server) shutdownGracefully() error {
+	ctx, cancel := context.WithTimeout(context.Background(), s.ShutdownTimeout)
 	defer cancel()
 
-	return server.Shutdown(ctx)
+	return s.HTTPServer.Shutdown(ctx)
 }
