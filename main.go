@@ -11,11 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/francescomari/httprun"
 	"github.com/francescomari/metrics-generator/internal/api"
-	"github.com/francescomari/metrics-generator/internal/httprun"
 	"github.com/francescomari/metrics-generator/internal/limits"
 	"github.com/francescomari/metrics-generator/internal/metrics"
-	"github.com/hashicorp/go-multierror"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -144,30 +143,9 @@ func (g *metricsGenerator) runAPIServer(ctx context.Context, config *limits.Conf
 		ShutdownTimeout: time.Second,
 	}
 
-	return g.handleAPIServerErrors(runServer.ListenAndServe(ctx))
-}
-
-func (g *metricsGenerator) handleAPIServerErrors(errs []error) error {
-	var result error
-
-	for _, err := range errs {
-		if err := g.handleAPIServerError(err); err != nil {
-			result = multierror.Append(err)
-		}
-	}
-
-	return result
-}
-
-func (g *metricsGenerator) handleAPIServerError(err error) error {
-	switch err {
-	case nil:
-		return nil
-	case context.Canceled:
-		return nil
-	case http.ErrServerClosed:
-		return nil
-	default:
+	if err := httprun.HandleErrors(runServer.ListenAndServe(ctx)); err != nil {
 		return fmt.Errorf("API server: %v", err)
 	}
+
+	return nil
 }
