@@ -136,7 +136,7 @@ func (g *metricsGenerator) runAPIServer(ctx context.Context, config *limits.Conf
 		ShutdownTimeout: time.Second,
 	}
 
-	if err := httprun.HandleErrors(runServer.ListenAndServe(ctx)); err != nil {
+	if err := runServer.ListenAndServe(ctx); err != nil {
 		return fmt.Errorf("API server: %v", err)
 	}
 
