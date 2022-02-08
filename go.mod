@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/francescomari/httprun v0.3.0
-	github.com/google/go-cmp v0.5.4
+	github.com/google/go-cmp v0.5.7
 	github.com/gorilla/mux v1.8.0
 	github.com/prometheus/client_golang v1.10.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c

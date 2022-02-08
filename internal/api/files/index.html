@@ -1,0 +1,54 @@
+<html lang="en">
+<head>
+    <title>Metrics generator</title>
+    <style>
+        html{
+            font-family: "Goudy Bookletter 1911", sans-serif;
+        }
+    </style>
+</head>
+<body>
+<h2>Metrics generator</h2>
+
+Generated metrics can be scraped on the <a href="/metrics">/metrics</a> endpoint
+
+<h4>Current values</h4>
+<ul>
+    <li>
+        Generated Error percentage: {{ .ErrorsPercentage }}%
+    </li>
+    <li>
+        Request time duration: {{ .MinDurationInterval }}s - {{ .MaxDurationInterval }}s
+    </li>
+</ul>
+
+<h4>Quick reference</h4>
+
+Read the current duration interval:
+<pre>
+    curl http://localhost:8080/-/config/duration-interval
+</pre>
+
+Simulate the duration to be a random number between 15s and 45s:
+<pre>
+    curl -X PUT http://localhost:8080/-/config/duration-interval -d 15,45
+</pre>
+
+Simulate the duration to be exactly 10s:
+<pre>
+    curl -X PUT http://localhost:8080/-/config/duration-interval -d 10,10
+</pre>
+
+Read the current errors percentage:
+<pre>
+    curl http://localhost:8080/-/config/errors-percentage
+</pre>
+
+Simulate the error rate to be 25%:
+<pre>
+    curl -X PUT http://localhost:8080/-/config/errors-percentage -d 25
+</pre>
+
+
+</body>
+</html>

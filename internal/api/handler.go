@@ -1,7 +1,9 @@
 package api
 
 import (
+	_ "embed"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"sync"
@@ -36,8 +38,16 @@ func (h *Handler) setupHandlers() {
 	h.setupDurationIntervalHandlers(router)
 	h.setupErrorsPercentageHandlers(router)
 	h.setupMetricsHandler(router)
+	h.setupRootHandler(router)
 
 	h.handler = router
+}
+
+func (h *Handler) setupRootHandler(router *mux.Router) {
+	router.
+		Methods(http.MethodGet).
+		Path("/").
+		HandlerFunc(h.handleRoot)
 }
 
 func (h *Handler) setupHealthHandler(router *mux.Router) {
@@ -80,6 +90,38 @@ func (h *Handler) setupMetricsHandler(router *mux.Router) {
 		Methods(http.MethodGet).
 		Path("/metrics").
 		Handler(h.Metrics)
+}
+
+//go:embed files/index.html
+var index string
+
+func (h *Handler) handleRoot(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", " text/html")
+
+	type Data struct {
+		ErrorsPercentage    int
+		MinDurationInterval int
+		MaxDurationInterval int
+	}
+
+	minD, maxD := h.Config.DurationInterval()
+
+	data := Data{
+		ErrorsPercentage:    h.Config.ErrorsPercentage(),
+		MinDurationInterval: minD,
+		MaxDurationInterval: maxD,
+	}
+
+	tmpl, err := template.New("index").Parse(index)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, "generating template: %v", err)
+		return
+	}
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, "executing template: %v", err)
+		return
+	}
 }
 
 func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {

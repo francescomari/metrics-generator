@@ -35,6 +35,29 @@ func (c mockConfig) ErrorsPercentage() int {
 func (c mockConfig) SetErrorsPercentage(value int) error {
 	return c.doSetErrorsPercentage(value)
 }
+func TestHandlerRoot(t *testing.T) {
+	config := mockConfig{
+		doDurationInterval: func() (int, int) {
+			return 2, 4
+		},
+		doErrorsPercentage: func() int {
+			return 10
+		},
+	}
+
+	response := doIndexRequest(handlerForConfig(config))
+	checkStatusCode(t, response, http.StatusOK)
+
+	data, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+
+	want := "Request time duration: 2s - 4s"
+	if !strings.Contains(string(data), want) {
+		t.Errorf("index page does not contain expected string:%s", want)
+	}
+}
 
 func TestHandlerHealth(t *testing.T) {
 	handler := api.Handler{}
@@ -183,6 +206,10 @@ func doGetErrorsPercentageRequest(handler http.Handler) *http.Response {
 
 func doSetErrorsPercentageRequest(handler http.Handler, body io.Reader) *http.Response {
 	return doRequestWithBody(handler, http.MethodPut, "/-/config/errors-percentage", body)
+}
+
+func doIndexRequest(handler http.Handler) *http.Response {
+	return doRequest(handler, http.MethodGet, "/")
 }
 
 func doHealthRequest(handler http.Handler) *http.Response {

@@ -3,3 +3,6 @@ snapshot:
 
 release:
 	goreleaser --rm-dist
+
+run:
+	go run main.go
